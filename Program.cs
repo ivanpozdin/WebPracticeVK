@@ -2,5 +2,5 @@
 
 using WebPracticeVK;
 
-var app = new VKWebApp();
+var app = new VkWebApp();
 app.StartConsoleApp();

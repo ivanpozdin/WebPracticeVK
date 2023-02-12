@@ -3,7 +3,7 @@ using Newtonsoft.Json;
 
 namespace WebPracticeVK;
 
-public class VKWebApp
+public class VkWebApp
 {
     private readonly HttpClient _client = new();
 
@@ -69,10 +69,11 @@ public class VKWebApp
         var accessToken = GetAccessToken(photos: true);
         var serverAddress = GetServerAddress(accessToken ?? throw new InvalidOperationException()).Result;
         Console.WriteLine("Введите путь к файлу фотографии");
-        string photoPath = Console.ReadLine() ?? throw new InvalidOperationException();
-        Console.WriteLine("Введите название файла фотографии");
-        string photoName = Console.ReadLine() ?? throw new InvalidOperationException();
+        var photoPath = Console.ReadLine() ?? throw new InvalidOperationException();
+        Console.WriteLine("Введите название файла фотографии(включая разрешение файла)");
+        var photoName = Console.ReadLine() ?? throw new InvalidOperationException();
         ChangeAvatar(accessToken ?? throw new InvalidOperationException(), serverAddress, photoPath, photoName);
+        Console.WriteLine("Аватарка изменена.");
     }
 
     private async void PrintFriendsOnline(string accessToken, string serviceKey)
@@ -90,8 +91,9 @@ public class VKWebApp
         var scope = "";
         if (photos) scope = "photos";
         if (friends) scope = "friends";
+
         var authString =
-            $"https://oauth.vk.com/authorize?client_id=51543481&display=page&redirect_uri=https://oauth.vk.com/blank.html/&scope={scope}s&response_type=token&v=5.131&state=123456&revoke=1";
+            $"https://oauth.vk.com/authorize?client_id=51543481&display=page&redirect_uri=https://oauth.vk.com/blank.html/&scope={scope}&response_type=token&v=5.131&state=123456&revoke=1";
         authString = authString.Replace("&", "^&");
         Process.Start(new ProcessStartInfo(
                 "cmd",
@@ -109,27 +111,30 @@ public class VKWebApp
             .GetAsync($"https://api.vk.com/method/photos.getOwnerPhotoUploadServer?access_token={accessToken}&v=5.131")
             .Result;
         var responseMessage = await serverAddressResponse.Content.ReadAsStringAsync();
-        dynamic serverAddressJsonDe = JsonConvert.DeserializeObject(responseMessage) ?? throw new InvalidOperationException();
+        dynamic serverAddressJsonDe =
+            JsonConvert.DeserializeObject(responseMessage) ?? throw new InvalidOperationException();
         string serverAddress = serverAddressJsonDe.response.upload_url;
         return serverAddress;
     }
-    private async void ChangeAvatar(string accessToken, string serverAddress,string photoPath, string photoName)
+
+    private async void ChangeAvatar(string accessToken, string serverAddress, string photoPath, string photoName)
     {
         var requestContent = new MultipartFormDataContent
         {
-            { new ByteArrayContent(await File.ReadAllBytesAsync(photoPath)), "photo", photoName }
+            { new ByteArrayContent(File.ReadAllBytes(photoPath)), "photo", photoName }
         };
         var uploadResponse = _client.PostAsync(serverAddress, requestContent).Result;
         var uploadResponseMessage = await uploadResponse.Content.ReadAsStringAsync();
-        dynamic uploadJsonDe = JsonConvert.DeserializeObject(uploadResponseMessage) ?? throw new InvalidOperationException();
-        Debug.Assert(uploadJsonDe != null, nameof(uploadJsonDe) + " != null");
+        dynamic uploadJsonDe = JsonConvert.DeserializeObject(uploadResponseMessage) ??
+                               throw new InvalidOperationException();
         string server = uploadJsonDe.server;
         string photo = uploadJsonDe.photo;
         string hash = uploadJsonDe.hash;
+
         var saveResponse = _client
             .GetAsync(
                 $"https://api.vk.com/method/photos.saveOwnerPhoto?access_token={accessToken}&server={server}&hash={hash}&photo={photo}&v=5.131")
             .Result;
-        // var saveResponseMessage = await saveResponse.Content.ReadAsStringAsync();
+        var saveResponseMessage = await saveResponse.Content.ReadAsStringAsync();
     }
 }
